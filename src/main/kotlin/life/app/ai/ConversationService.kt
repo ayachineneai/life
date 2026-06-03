@@ -62,7 +62,11 @@ class ConversationService(
         return turn
     }
 
-    fun listTurns(conversationId: Uuid): List<ConversationTurnPo> {
-        return conversationDao.listTurnsByConversationId(conversationId)
+    fun listTurns(
+        conversationId: Uuid,
+        beforeId: Uuid? = null,
+        limit: Int = 50,
+    ): List<ConversationTurnPo> {
+        return conversationDao.listTurnsByConversationId(conversationId, beforeId, limit)
     }
 }

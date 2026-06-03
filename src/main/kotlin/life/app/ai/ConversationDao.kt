@@ -1,7 +1,9 @@
 package life.app.ai
 
 import org.jetbrains.exposed.v1.core.SortOrder
+import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
@@ -56,11 +58,25 @@ class ConversationDao {
         return turn
     }
 
-    fun listTurnsByConversationId(conversationId: Uuid): List<ConversationTurnPo> {
+    fun listTurnsByConversationId(
+        conversationId: Uuid,
+        beforeId: Uuid? = null,
+        limit: Int = 50,
+    ): List<ConversationTurnPo> {
         return ConversationTurnTable
             .selectAll()
-            .where { ConversationTurnTable.conversationId eq conversationId }
-            .orderBy(ConversationTurnTable.createTime to SortOrder.ASC)
+            .where {
+                val conversationCondition = ConversationTurnTable.conversationId eq conversationId
+
+                if (beforeId == null) {
+                    conversationCondition
+                } else {
+                    conversationCondition and (ConversationTurnTable.id less beforeId)
+                }
+            }
+            .orderBy(ConversationTurnTable.id to SortOrder.DESC)
+            .limit(limit)
             .map { row -> ConversationMapper.toTurnPo(row) }
+            .reversed()
     }
 }
