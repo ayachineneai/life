@@ -1,0 +1,39 @@
+plugins {
+    id 'application'
+    id 'org.jetbrains.kotlin.jvm' version '2.3.20'
+}
+
+group = 'org.ayachinene'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.jetbrains.exposed:exposed-core:1.3.0'
+    implementation 'org.jetbrains.exposed:exposed-jdbc:1.3.0'
+    implementation 'org.jetbrains.exposed:exposed-java-time:1.3.0'
+    implementation 'com.github.f4b6a3:uuid-creator:6.1.1'
+    implementation 'io.github.cdimascio:dotenv-kotlin:6.5.1'
+    runtimeOnly 'org.postgresql:postgresql:42.7.7'
+    runtimeOnly 'com.h2database:h2:2.4.240'
+
+    testImplementation 'org.jetbrains.kotlin:kotlin-test'
+}
+
+kotlin {
+    jvmToolchain(21)
+
+    compilerOptions {
+        freeCompilerArgs.add('-opt-in=kotlin.uuid.ExperimentalUuidApi')
+    }
+}
+
+test {
+    useJUnitPlatform()
+}
+
+application {
+    mainClass = 'org.ayachinene.MainKt'
+}
