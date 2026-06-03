@@ -1,4 +1,4 @@
-package life.app.ai
+package life.app.ai.conversation
 
 import life.util.Times
 import life.util.Uuids

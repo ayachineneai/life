@@ -1,4 +1,4 @@
-package life.app.ai
+package life.app.ai.conversation
 
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.javatime.datetime
