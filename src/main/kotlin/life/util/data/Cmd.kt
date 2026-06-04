@@ -1,8 +1,8 @@
 package life.util.data
 
-import com.fasterxml.jackson.annotation.JsonPropertyDescription
+import life.infra.schema.PropDesc
 
 data class Cmd(
-    @get:JsonPropertyDescription("The bash command to execute.")
+    @get:PropDesc("The bash command to execute.")
     val command: String,
 )

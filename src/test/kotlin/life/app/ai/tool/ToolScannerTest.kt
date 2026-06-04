@@ -53,7 +53,7 @@ class ToolScannerTest {
 
         assertEquals(2, registry.tools.size)
         assertEquals("get_weather", registry.require("get_weather").name)
-        assertEquals(listOf("get_weather", "list_files"), registry.definitions().map { it.asFunction().name() })
+        assertEquals(listOf("get_weather", "list_files"), registry.openAiTools().map { it.asFunction().name() })
     }
 
     @Test

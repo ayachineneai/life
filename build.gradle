@@ -12,6 +12,8 @@ repositories {
 
 dependencies {
     implementation 'com.openai:openai-java:4.38.0'
+    implementation platform('io.insert-koin:koin-bom:4.2.1')
+    implementation 'io.insert-koin:koin-core'
     implementation 'io.github.classgraph:classgraph:4.8.184'
     implementation 'com.github.victools:jsonschema-generator:4.38.0'
     implementation 'com.github.victools:jsonschema-module-jackson:4.38.0'

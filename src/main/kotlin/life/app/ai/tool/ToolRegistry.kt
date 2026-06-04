@@ -24,7 +24,7 @@ class ToolRegistry(tools: List<Tool>) {
         return get(name) ?: error("AI tool not found: $name")
     }
 
-    fun definitions(): List<OpenAiTool> {
+    fun openAiTools(): List<OpenAiTool> {
         return tools.map { tool -> tool.toFunctionCall() }
     }
 }
