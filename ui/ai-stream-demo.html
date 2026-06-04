@@ -3,82 +3,312 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>AI Stream Demo</title>
+  <title>AI Tool Stream Demo</title>
   <style>
     :root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-    body { margin: 0; background: #f6f7f9; color: #16181d; }
-    main { max-width: 880px; margin: 0 auto; padding: 32px 20px; }
-    h1 { margin: 0 0 20px; font-size: 24px; font-weight: 700; letter-spacing: 0; }
-    form { display: grid; gap: 12px; }
-    textarea {
-      min-height: 108px; resize: vertical; padding: 14px 16px; border: 1px solid #c7ccd6;
-      border-radius: 8px; font: inherit; line-height: 1.5; background: #fff;
-    }
-    button {
-      justify-self: start; height: 40px; padding: 0 18px; border: 0; border-radius: 8px;
-      background: #176b87; color: #fff; font: inherit; font-weight: 650; cursor: pointer;
-    }
-    button:disabled { opacity: .55; cursor: progress; }
-    pre {
-      min-height: 280px; margin: 20px 0 0; padding: 18px; border: 1px solid #d9dde5;
-      border-radius: 8px; background: #fff; white-space: pre-wrap; line-height: 1.6;
-      font: 15px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    }
+    body { margin: 0; background: #f4f6f8; color: #151922; }
+    main { max-width: 1180px; margin: 0 auto; padding: 24px; }
+    header { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+    h1 { margin: 0; font-size: 24px; letter-spacing: 0; }
+    .status { color: #5d6573; font-size: 14px; }
+    .layout { display: grid; grid-template-columns: 340px 1fr; gap: 16px; align-items: start; }
+    section, aside { background: #fff; border: 1px solid #d8dde6; border-radius: 8px; }
+    aside { padding: 14px; }
+    h2 { margin: 0 0 12px; font-size: 15px; letter-spacing: 0; }
+    .tool { border-top: 1px solid #edf0f4; padding: 12px 0; }
+    .tool:first-of-type { border-top: 0; padding-top: 0; }
+    .tool strong { display: block; font-size: 14px; }
+    .tool p { margin: 5px 0 0; color: #5d6573; font-size: 13px; line-height: 1.45; }
+    form { padding: 14px; border-bottom: 1px solid #d8dde6; display: grid; gap: 12px; }
+    textarea { min-height: 112px; resize: vertical; padding: 12px; border: 1px solid #c8ced8; border-radius: 8px; font: inherit; line-height: 1.5; }
+    button { justify-self: start; height: 38px; padding: 0 16px; border: 0; border-radius: 8px; background: #12636f; color: #fff; font: inherit; font-weight: 650; cursor: pointer; }
+    button:disabled { opacity: .56; cursor: progress; }
+    .panes { display: grid; grid-template-columns: 1fr 320px; min-height: 460px; }
+    .stream-shell { border-right: 1px solid #d8dde6; display: grid; grid-template-rows: auto 1fr; min-height: 460px; }
+    .stream-label { padding: 12px 16px; border-bottom: 1px solid #edf0f4; color: #5d6573; font-size: 13px; font-weight: 650; }
+    .stream { padding: 16px; white-space: pre-wrap; line-height: 1.6; overflow: auto; }
+    .stream.empty::before { content: "Waiting for assistant output"; color: #8a94a4; }
+    .stream.streaming::after { content: ""; display: inline-block; width: 7px; height: 1em; margin-left: 2px; vertical-align: -2px; background: #12636f; animation: blink 1s steps(2, start) infinite; }
+    .timeline { padding: 14px; display: grid; align-content: start; gap: 10px; background: #fbfcfd; }
+    .event { border: 1px solid #dde3eb; border-left: 4px solid #9aa4b2; border-radius: 8px; padding: 10px; background: #fff; animation: eventIn .16s ease-out; }
+    .event.draft { border-left-color: #7c8b16; background: #fffef3; }
+    .event.ready { border-left-color: #2563eb; }
+    .event.executing { border-left-color: #c26a0a; background: #fff8ef; }
+    .event.result { border-left-color: #11805a; background: #f6fffb; }
+    .event.error { border-left-color: #c33535; background: #fff7f7; }
+    .event b { display: block; font-size: 13px; margin-bottom: 6px; }
+    .event small { display: block; color: #697386; font-size: 11px; margin-bottom: 6px; }
+    .event pre { margin: 0; white-space: pre-wrap; word-break: break-word; font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #374151; }
+    @keyframes blink { 50% { opacity: 0; } }
+    @keyframes eventIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    @media (max-width: 880px) { .layout, .panes { grid-template-columns: 1fr; } .stream-shell { border-right: 0; border-bottom: 1px solid #d8dde6; } }
   </style>
 </head>
 <body>
   <main>
-    <h1>AI Stream Demo</h1>
-    <form id="form">
-      <textarea id="input" autofocus>Write a short paragraph about Kotlin streaming.</textarea>
-      <button id="send" type="submit">Send</button>
-    </form>
-    <pre id="output"></pre>
+    <header>
+      <h1>AI Tool Stream Demo</h1>
+      <div class="status" id="status">Loading tools...</div>
+    </header>
+    <div class="layout">
+      <aside>
+        <h2>Registered Tools</h2>
+        <div id="tools"></div>
+      </aside>
+      <section>
+        <form id="form">
+          <textarea id="input" autofocus>Use demo_echo to verify that tool calling is wired up. Echo: hello from the UI.</textarea>
+          <button id="send" type="submit">Send</button>
+        </form>
+        <div class="panes">
+          <div class="stream-shell">
+            <div class="stream-label">Assistant</div>
+            <div class="stream empty" id="stream"></div>
+          </div>
+          <div class="timeline" id="timeline"></div>
+        </div>
+      </section>
+    </div>
   </main>
   <script>
     const form = document.querySelector("#form");
     const input = document.querySelector("#input");
-    const output = document.querySelector("#output");
     const send = document.querySelector("#send");
-    let queue = [];
-    let timer = null;
+    const status = document.querySelector("#status");
+    const tools = document.querySelector("#tools");
+    const stream = document.querySelector("#stream");
+    const timeline = document.querySelector("#timeline");
+    const conversationStorageKey = "ai-tool-stream-demo.conversationId";
+    let conversationId = localStorage.getItem(conversationStorageKey) || "";
+    let runId = 0;
+    let textQueue = "";
+    let typing = false;
+    let typeTimer = 0;
+    const toolCards = new Map();
+    const toolDrafts = new Map();
+    const draftKeyByName = new Map();
+    let lastReadyToolKey = "";
 
-    function type(text) {
-      queue.push(...text);
-      if (timer) return;
-      timer = setInterval(() => {
-        const char = queue.shift();
-        if (char === undefined) {
-          clearInterval(timer);
-          timer = null;
-          return;
-        }
-        output.textContent += char;
-        output.scrollTop = output.scrollHeight;
-      }, 16);
+    async function loadTools() {
+      const response = await fetch("/api/tools");
+      const items = await response.json();
+      status.textContent = `${items.length} tools registered`;
+      tools.innerHTML = items.map(tool => `
+        <div class="tool">
+          <strong>${escapeHtml(tool.name)}</strong>
+          <p>${escapeHtml(tool.description || "No description")}</p>
+        </div>
+      `).join("");
+    }
+
+    function addEvent(title, payload, state = "") {
+      const item = document.createElement("div");
+      item.className = `event ${state}`.trim();
+      item.innerHTML = `<b>${escapeHtml(title)}</b><pre>${escapeHtml(format(payload))}</pre>`;
+      timeline.appendChild(item);
+      timeline.scrollTop = timeline.scrollHeight;
+      return item;
+    }
+
+    function upsertEvent(key, title, payload, state = "") {
+      let item = toolCards.get(key);
+      if (!item) {
+        item = document.createElement("div");
+        timeline.appendChild(item);
+        toolCards.set(key, item);
+      }
+      item.className = `event ${state}`.trim();
+      item.innerHTML = `<b>${escapeHtml(title)}</b><small>${escapeHtml(stateLabel(state))}</small><pre>${escapeHtml(format(payload))}</pre>`;
+      timeline.scrollTop = timeline.scrollHeight;
+      return item;
+    }
+
+    function stateLabel(state) {
+      return {
+        draft: "receiving arguments",
+        ready: "arguments ready",
+        executing: "executing",
+        result: "returned",
+        error: "error",
+      }[state] || "";
+    }
+
+    function onSse(event, data) {
+      if (event === "text") enqueueText(data.delta || "");
+      if (event === "tool_call_delta") updateToolDraft(data);
+      if (event === "tool_call_ready") markToolReady(data);
+      if (event === "tool_call") markToolExecuting(data);
+      if (event === "tool_result") addEvent("Tool result", parseOutput(data.output), "result");
+      if (event === "conversation") {
+        conversationId = data.id || conversationId;
+        if (conversationId) localStorage.setItem(conversationStorageKey, conversationId);
+        addEvent(data.reused ? "Conversation reused" : "Conversation created", data);
+      }
+      if (event === "tools") status.textContent = `${data.length} tools registered`;
+      if (event === "error") {
+        stream.classList.remove("streaming");
+        addEvent("Error", data, "error");
+      }
+      if (event === "done") {
+        addEvent("Done", data);
+        status.textContent = typing || textQueue ? "Finishing output..." : "Done";
+      }
+    }
+
+    function enqueueText(delta) {
+      if (!delta) return;
+      stream.classList.remove("empty");
+      textQueue += delta;
+      status.textContent = "Streaming text...";
+      stream.classList.add("streaming");
+      if (!typing) pumpText(runId);
+    }
+
+    function pumpText(id) {
+      if (id !== runId) return;
+      if (!textQueue) {
+        typing = false;
+        return;
+      }
+      typing = true;
+      const size = textQueue.charCodeAt(0) > 127 ? 1 : Math.min(3, textQueue.length);
+      const chunk = textQueue.slice(0, size);
+      textQueue = textQueue.slice(size);
+      stream.textContent += chunk;
+      stream.scrollTop = stream.scrollHeight;
+      typeTimer = window.setTimeout(() => pumpText(id), 22);
+    }
+
+    function waitForText() {
+      return new Promise(resolve => {
+        const check = () => typing || textQueue ? window.setTimeout(check, 40) : resolve();
+        check();
+      });
+    }
+
+    function updateToolDraft(data) {
+      const key = toolKey(data);
+      const draft = toolDrafts.get(key) || "";
+      const next = draft + (data.delta || "");
+      toolDrafts.set(key, next);
+      status.textContent = "Preparing tool call...";
+      upsertEvent(key, "Tool call", { arguments: next || "..." }, "draft");
+    }
+
+    function markToolReady(data) {
+      const key = toolKey(data);
+      const name = data.name || "Tool call";
+      toolDrafts.set(key, data.arguments || "");
+      lastReadyToolKey = key;
+      if (data.name) draftKeyByName.set(data.name, key);
+      status.textContent = data.name ? `Tool ready: ${data.name}` : "Tool arguments ready";
+      upsertEvent(key, data.name ? `Tool call: ${data.name}` : "Tool call", {
+        name: name,
+        arguments: parseOutput(data.arguments || "{}"),
+      }, "ready");
+    }
+
+    function markToolExecuting(data) {
+      const key = draftKeyByName.get(data.name) || lastReadyToolKey || data.callId || toolKey(data);
+      draftKeyByName.set(data.name, key);
+      lastReadyToolKey = "";
+      status.textContent = `Executing tool: ${data.name}`;
+      upsertEvent(key, `Tool call: ${data.name}`, {
+        callId: data.callId,
+        name: data.name,
+        arguments: parseOutput(data.arguments || "{}"),
+      }, "executing");
+    }
+
+    function toolKey(data) {
+      return data.itemId || data.callId || `tool-${data.outputIndex ?? toolCards.size}`;
+    }
+
+    async function streamChat() {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          input: input.value,
+          conversationId: conversationId || null,
+        }),
+      });
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer = consumeSse(buffer + decoder.decode(value, { stream: true }));
+      }
+      consumeSse(buffer + decoder.decode());
+    }
+
+    function consumeSse(buffer) {
+      let index;
+      while ((index = buffer.indexOf("\n\n")) >= 0) {
+        const block = buffer.slice(0, index);
+        buffer = buffer.slice(index + 2);
+        const parsed = parseSse(block);
+        if (parsed) onSse(parsed.event, parsed.data);
+      }
+      return buffer;
+    }
+
+    function parseSse(block) {
+      let event = "message";
+      let data = "";
+      for (const line of block.split("\n")) {
+        if (line.startsWith("event: ")) event = line.slice(7);
+        if (line.startsWith("data: ")) data += line.slice(6);
+      }
+      if (!data) return null;
+      return { event, data: JSON.parse(data) };
+    }
+
+    function parseOutput(output) {
+      try { return JSON.parse(output); } catch { return output; }
+    }
+
+    function format(value) {
+      return typeof value === "string" ? value : JSON.stringify(value, null, 2);
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
     }
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
-      output.textContent = "";
-      queue = [];
+      runId += 1;
+      window.clearTimeout(typeTimer);
+      textQueue = "";
+      typing = false;
+      toolCards.clear();
+      toolDrafts.clear();
+      draftKeyByName.clear();
+      lastReadyToolKey = "";
+      stream.textContent = "";
+      stream.classList.add("empty");
+      stream.classList.add("streaming");
+      timeline.innerHTML = "";
       send.disabled = true;
-
+      status.textContent = "Waiting for model...";
       try {
-        const response = await fetch("/api/chat", { method: "POST", body: input.value });
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          type(decoder.decode(value, { stream: true }));
-        }
-        type(decoder.decode());
+        await streamChat();
+        await waitForText();
       } catch (error) {
-        type(`[error] ${error.message}`);
+        addEvent("Error", { message: error.message }, "error");
       } finally {
+        stream.classList.remove("streaming");
+        if (status.textContent === "Finishing output...") status.textContent = "Done";
         send.disabled = false;
       }
+    });
+
+    loadTools().catch(error => {
+      status.textContent = "Tool registry unavailable";
+      addEvent("Error", { message: error.message });
     });
   </script>
 </body>

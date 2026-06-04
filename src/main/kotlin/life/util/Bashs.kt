@@ -7,9 +7,6 @@ import java.nio.charset.StandardCharsets.UTF_8
 
 object Bashs {
 
-    @Tool(
-        description = "A restricted bash execution tool. Use it to browse, read, edit, and delete files under the configured working directory.",
-    )
     fun exec(cmd: Cmd): String {
         return exec("life", "./.life", cmd.command)
     }

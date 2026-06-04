@@ -34,10 +34,9 @@ class ToolCallHandlerTest {
             arguments = """{"path":"src","recursive":true,"limit":3}""",
         )) ?: error("Expected function tool call output")
 
-        val output = result.asFunctionCallOutput()
-        val body = mapper.readTree(output.output().asString())
+        val body = mapper.readTree(mapper.writeValueAsString(result.result))
 
-        assertEquals("call_1", output.callId())
+        assertEquals("call_1", result.callId)
         assertEquals(true, body["ok"].booleanValue())
         assertEquals("list_files", body["tool"].textValue())
         assertEquals("src:true:3", body["result"].textValue())
@@ -56,7 +55,7 @@ class ToolCallHandlerTest {
             arguments = """{}""",
         )) ?: error("Expected function tool call output")
 
-        val body = mapper.readTree(result.asFunctionCallOutput().output().asString())
+        val body = mapper.readTree(mapper.writeValueAsString(result.result))
         assertEquals(false, body["ok"].booleanValue())
         assertEquals("missing_tool", body["tool"].textValue())
         assertEquals("tool_execution_error", body["error"]["code"].textValue())

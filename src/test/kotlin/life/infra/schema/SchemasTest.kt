@@ -41,12 +41,24 @@ class SchemasTest {
         assertEquals(listOf("string", "null"), properties["traceId"]["type"].map { it.textValue() })
     }
 
+    @Test
+    fun `keeps property named title`() {
+        val schema = Schemas.schema(TitleArgs::class)
+
+        assertEquals("string", schema["properties"]["title"]["type"].textValue())
+        assertEquals(setOf("title"), schema["required"].map { it.textValue() }.toSet())
+    }
+
     data class ToolArgs(
         val command: String,
         val timeoutSeconds: Int?,
         val mealType: MealType,
         val ownerId: UserId,
         val traceId: TraceId?,
+    )
+
+    data class TitleArgs(
+        val title: String,
     )
 
     enum class MealType {

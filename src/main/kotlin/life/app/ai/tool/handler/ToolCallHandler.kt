@@ -1,13 +1,14 @@
 package life.app.ai.tool.handler
 
 import com.openai.models.responses.ResponseFunctionToolCall
-import com.openai.models.responses.ResponseInputItem
 import com.openai.models.responses.ResponseOutputItem as OpenAiToolCall
 import life.app.ai.tool.Tool
 import life.app.ai.tool.ToolRegistry
 import life.app.ai.tool.protocol.ToolError
+import life.app.ai.tool.protocol.ToolOutput
 import life.app.ai.tool.protocol.ToolResult
 import org.koin.core.Koin
+import java.lang.reflect.InvocationTargetException
 import kotlin.reflect.full.instanceParameter
 import kotlin.reflect.full.valueParameters
 import kotlin.reflect.jvm.jvmErasure
@@ -16,7 +17,7 @@ class ToolCallHandler(
     private val registry: ToolRegistry,
     private val koin: Koin,
 ) {
-    fun handle(call: OpenAiToolCall): ResponseInputItem? {
+    fun handle(call: OpenAiToolCall): ToolOutput? {
         val functionCall = call.functionCall()
         return when {
             functionCall.isPresent -> handle(functionCall.get())
@@ -24,13 +25,13 @@ class ToolCallHandler(
         }
     }
 
-    private fun handle(functionCall: ResponseFunctionToolCall): ResponseInputItem {
+    private fun handle(functionCall: ResponseFunctionToolCall): ToolOutput {
         val result = runCatching {
             val tool = registry.require(functionCall.name())
             val args = arguments(tool, functionCall)
             ToolResult.success(tool.name, normalize(invoke(tool, args)))
         }.getOrElse { error ->
-            ToolResult.failure(functionCall.name(), toolError(error))
+            ToolResult.failure(functionCall.name(), toolError(functionCall, error))
         }
         return output(functionCall.callId(), result)
     }
@@ -62,15 +63,18 @@ class ToolCallHandler(
         }
     }
 
-    private fun toolError(error: Throwable): ToolError {
-        val message = error.message ?: "Tool call failed"
+    private fun toolError(call: ResponseFunctionToolCall, error: Throwable): ToolError {
+        val cause = (error as? InvocationTargetException)?.targetException ?: error
+        val header = "Tool call failed: name=${call.name()} callId=${call.callId()}"
+        println(header)
+        System.err.println(header)
+        cause.printStackTrace(System.out)
+        cause.printStackTrace(System.err)
+        val message = cause.message ?: cause::class.qualifiedName ?: "Tool call failed"
         return ToolError(code = "tool_execution_error", message = message)
     }
 
-    private fun output(callId: String, result: ToolResult): ResponseInputItem {
-        val output = ResponseInputItem.FunctionCallOutput.builder()
-            .callId(callId)
-            .outputAsJson(result)
-        return ResponseInputItem.ofFunctionCallOutput(output.build())
+    private fun output(callId: String, result: ToolResult): ToolOutput {
+        return ToolOutput(callId = callId, result = result)
     }
 }

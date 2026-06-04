@@ -57,13 +57,14 @@ class ToolScannerTest {
     }
 
     @Test
-    fun `scans annotated tools from base package`() {
-        val tool = ToolScanner.scan("life.util").require("exec")
+    fun `scans meal service tools from base package`() {
+        val tool = ToolScanner.scan("life.app.modules.meal").require("record_meal")
         val properties = tool.paramsSchema["properties"]
 
-        assertEquals("exec", tool.name)
+        assertEquals("record_meal", tool.name)
         assertEquals("object", tool.paramsSchema["type"].textValue())
-        assertEquals("string", properties["command"]["type"].textValue())
+        assertEquals("string", properties["title"]["type"].textValue())
+        assertEquals("string", properties["occurredTime"]["type"].textValue())
     }
 
     @Test

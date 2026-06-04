@@ -3,6 +3,8 @@ package life.app.ai.utils
 import com.openai.models.ChatModel
 import com.openai.models.responses.ResponseCreateParams
 import com.openai.models.responses.Tool
+import life.app.ai.tool.protocol.ToolOutput
+import life.app.ai.tool.protocol.toResponseInputItem
 
 object AiRequests {
     val chatModel: ChatModel = ChatModel.GPT_5_4_MINI
@@ -62,6 +64,16 @@ object AiRequests {
                     previousResponseId(previousResponseId)
                 }
             }
+            .build()
+    }
+
+    fun toolOutputs(
+        outputs: List<ToolOutput>,
+        conversationId: String,
+    ): ResponseCreateParams {
+        return ResponseCreateParams.builder()
+            .inputOfResponse(outputs.map { output -> output.toResponseInputItem() })
+            .conversation(conversationId)
             .build()
     }
 }
