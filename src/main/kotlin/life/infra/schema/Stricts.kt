@@ -6,20 +6,22 @@ import com.fasterxml.jackson.databind.node.ObjectNode
 
 object Stricts {
     fun toStrictFormat(schema: ObjectNode): ObjectNode {
-        strict(schema)
+        strict(schema, isRoot = true)
         return schema
     }
 
-    private fun strict(node: JsonNode) {
+    private fun strict(node: JsonNode, isRoot: Boolean) {
         when (node) {
             is ObjectNode -> {
-                node.remove("\$schema")
-                node.remove("title")
+                if (isRoot) {
+                    node.remove("\$schema")
+                    node.remove("title")
+                }
                 additionalProperties(node)
                 required(node)
-                node.fields().forEach { (_, child) -> strict(child) }
+                node.fields().forEach { (_, child) -> strict(child, isRoot = false) }
             }
-            is ArrayNode -> node.forEach { child -> strict(child) }
+            is ArrayNode -> node.forEach { child -> strict(child, isRoot = false) }
         }
     }
 
