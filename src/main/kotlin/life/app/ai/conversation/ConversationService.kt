@@ -41,6 +41,7 @@ class ConversationService(
         userInput: String,
         modelOutput: String,
         openaiResponseId: String? = null,
+        model: String? = null,
     ): ConversationTurnPo {
         checkNotNull(conversationDao.findConversationById(conversationId)) {
             "Conversation not found: $conversationId"
@@ -52,6 +53,7 @@ class ConversationService(
             userInput = userInput,
             modelOutput = modelOutput,
             openaiResponseId = openaiResponseId,
+            model = model,
             createTime = now,
         )
 

@@ -30,5 +30,6 @@ CREATE TABLE conversation_turn (
     user_input         TEXT,               -- 用户输入文本
     model_output       TEXT,               -- 模型输出文本
     openai_response_id VARCHAR(128),       -- OpenAI侧响应ID
+    model              VARCHAR(128),       -- 本轮使用的模型
     create_time        TIMESTAMP NOT NULL  -- 创建时间，单位：本地时间
 );

@@ -1,0 +1,4 @@
+package life
+
+fun main() {
+}

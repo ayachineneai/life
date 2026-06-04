@@ -19,6 +19,7 @@ data class ConversationTurnPo(
     val userInput: String? = null,
     val modelOutput: String? = null,
     val openaiResponseId: String? = null,
+    val model: String? = null,
     val createTime: LocalDateTime,
 )
 
@@ -38,6 +39,7 @@ object ConversationTurnTable : Table("conversation_turn") {
     val userInput = text("user_input").nullable()
     val modelOutput = text("model_output").nullable()
     val openaiResponseId = varchar("openai_response_id", 128).nullable()
+    val model = varchar("model", 128).nullable()
     val createTime = datetime("create_time")
 
     override val primaryKey = PrimaryKey(id)

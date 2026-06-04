@@ -31,6 +31,7 @@ object ConversationMapper {
         row[ConversationTurnTable.userInput] = turn.userInput
         row[ConversationTurnTable.modelOutput] = turn.modelOutput
         row[ConversationTurnTable.openaiResponseId] = turn.openaiResponseId
+        row[ConversationTurnTable.model] = turn.model
         row[ConversationTurnTable.createTime] = turn.createTime
     }
 
@@ -51,6 +52,7 @@ object ConversationMapper {
             userInput = row[ConversationTurnTable.userInput],
             modelOutput = row[ConversationTurnTable.modelOutput],
             openaiResponseId = row[ConversationTurnTable.openaiResponseId],
+            model = row[ConversationTurnTable.model],
             createTime = row[ConversationTurnTable.createTime],
         )
     }
