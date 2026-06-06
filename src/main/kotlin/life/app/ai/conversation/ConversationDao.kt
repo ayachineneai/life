@@ -35,19 +35,15 @@ class ConversationDao {
     }
 
     fun updateTitle(id: Uuid, title: String?): Boolean {
-        val affectedRows = ConversationTable.update({ ConversationTable.id eq id }) { row ->
-            ConversationMapper.fillConversationTitleUpdate(row, title)
-        }
-
-        return affectedRows > 0
+        return ConversationTable.update({ ConversationTable.id eq id }) { row ->
+            row[ConversationTable.title] = title
+        } > 0
     }
 
     fun updateLastActiveTime(id: Uuid, lastActiveTime: LocalDateTime): Boolean {
-        val affectedRows = ConversationTable.update({ ConversationTable.id eq id }) { row ->
-            ConversationMapper.fillConversationLastActiveTimeUpdate(row, lastActiveTime)
-        }
-
-        return affectedRows > 0
+        return ConversationTable.update({ ConversationTable.id eq id }) { row ->
+            row[ConversationTable.lastActiveTime] = lastActiveTime
+        } > 0
     }
 
     fun insertTurn(turn: ConversationTurnPo): ConversationTurnPo {

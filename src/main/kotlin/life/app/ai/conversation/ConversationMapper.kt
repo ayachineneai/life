@@ -2,27 +2,14 @@ package life.app.ai.conversation
 
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.statements.UpdateBuilder
-import java.time.LocalDateTime
 
 object ConversationMapper {
     fun fillConversationInsert(row: UpdateBuilder<*>, conversation: ConversationPo) {
-        fillConversation(row, conversation)
+        row[ConversationTable.openaiConversationId] = conversation.openaiConversationId
+        row[ConversationTable.title] = conversation.title
         row[ConversationTable.id] = conversation.id
         row[ConversationTable.createTime] = conversation.createTime
         row[ConversationTable.lastActiveTime] = conversation.lastActiveTime
-    }
-
-    fun fillConversationTitleUpdate(row: UpdateBuilder<*>, title: String?) {
-        row[ConversationTable.title] = title
-    }
-
-    fun fillConversationLastActiveTimeUpdate(row: UpdateBuilder<*>, lastActiveTime: LocalDateTime) {
-        row[ConversationTable.lastActiveTime] = lastActiveTime
-    }
-
-    private fun fillConversation(row: UpdateBuilder<*>, conversation: ConversationPo) {
-        row[ConversationTable.openaiConversationId] = conversation.openaiConversationId
-        row[ConversationTable.title] = conversation.title
     }
 
     fun fillTurnInsert(row: UpdateBuilder<*>, turn: ConversationTurnPo) {

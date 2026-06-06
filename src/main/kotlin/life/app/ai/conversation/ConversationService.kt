@@ -2,6 +2,7 @@ package life.app.ai.conversation
 
 import life.util.Times
 import life.util.Uuids
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import kotlin.uuid.Uuid
 
 class ConversationService(
@@ -20,20 +21,28 @@ class ConversationService(
             lastActiveTime = now,
         )
 
-        conversationDao.insertConversation(conversation)
+        transaction {
+            conversationDao.insertConversation(conversation)
+        }
         return conversation
     }
 
     fun findConversationById(id: Uuid): ConversationPo? {
-        return conversationDao.findConversationById(id)
+        return transaction {
+            conversationDao.findConversationById(id)
+        }
     }
 
     fun listConversations(): List<ConversationPo> {
-        return conversationDao.listConversations()
+        return transaction {
+            conversationDao.listConversations()
+        }
     }
 
     fun updateTitle(id: Uuid, title: String?): Boolean {
-        return conversationDao.updateTitle(id, title)
+        return transaction {
+            conversationDao.updateTitle(id, title)
+        }
     }
 
     fun appendTurn(
@@ -43,9 +52,6 @@ class ConversationService(
         openaiResponseId: String? = null,
         model: String? = null,
     ): ConversationTurnPo {
-        checkNotNull(conversationDao.findConversationById(conversationId)) {
-            "Conversation not found: $conversationId"
-        }
         val now = Times.now()
         val turn = ConversationTurnPo(
             id = Uuids.uuid7(),
@@ -57,10 +63,16 @@ class ConversationService(
             createTime = now,
         )
 
-        conversationDao.insertTurn(turn)
-        check(conversationDao.updateLastActiveTime(conversationId, now)) {
-            "Conversation not found: $conversationId"
+        transaction {
+            checkNotNull(conversationDao.findConversationById(conversationId)) {
+                "Conversation not found: $conversationId"
+            }
+            conversationDao.insertTurn(turn)
+            check(conversationDao.updateLastActiveTime(conversationId, now)) {
+                "Conversation not found: $conversationId"
+            }
         }
+
         return turn
     }
 
@@ -69,6 +81,8 @@ class ConversationService(
         beforeId: Uuid? = null,
         limit: Int = 50,
     ): List<ConversationTurnPo> {
-        return conversationDao.listTurnsByConversationId(conversationId, beforeId, limit)
+        return transaction {
+            conversationDao.listTurnsByConversationId(conversationId, beforeId, limit)
+        }
     }
 }
