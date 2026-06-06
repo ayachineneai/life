@@ -65,6 +65,12 @@ class ToolScannerTest {
         assertEquals("object", tool.paramsSchema["type"].textValue())
         assertEquals("string", properties["title"]["type"].textValue())
         assertEquals("string", properties["occurredTime"]["type"].textValue())
+        assertEquals(
+            "Local occurrence time. Use exactly yyyy-MM-dd'T'HH:mm:ss, for example 2026-06-05T12:00:00. Do not include timezone, Z, offset, milliseconds, or fractional seconds.",
+            properties["occurredTime"]["description"].textValue(),
+        )
+        assertEquals("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}$", properties["occurredTime"]["pattern"].textValue())
+        assertNull(properties["occurredTime"]["format"])
     }
 
     @Test

@@ -11,6 +11,7 @@ import com.github.victools.jsonschema.module.jackson.JacksonModule
 import com.github.victools.jsonschema.module.jackson.JacksonOption
 import com.openai.core.JsonValue
 import com.openai.models.responses.FunctionTool
+import life.infra.schema.custom.CustomDefinitions
 import kotlin.reflect.KClass
 
 object Schemas {
@@ -23,7 +24,7 @@ object Schemas {
             mapper,
             SchemaVersion.DRAFT_2020_12,
             OptionPreset.PLAIN_JSON)
-            .apply { forTypesInGeneral().withCustomDefinitionProvider(ValueProvider) }
+            .apply { forTypesInGeneral().withCustomDefinitionProvider(ValueProvider(CustomDefinitions.definitionMap)) }
             .with(
                 JacksonModule(
                     JacksonOption.RESPECT_JSONPROPERTY_REQUIRED,

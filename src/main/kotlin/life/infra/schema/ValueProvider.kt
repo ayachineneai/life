@@ -8,12 +8,18 @@ import java.lang.reflect.Modifier
 import java.lang.reflect.Type
 import com.fasterxml.jackson.annotation.JsonValue as JacksonJsonValue
 
-object ValueProvider : CustomDefinitionProviderV2 {
+class ValueProvider(
+    private val customDefinitions: Map<Class<*>, (SchemaGenerationContext) -> CustomDefinition> = emptyMap(),
+) : CustomDefinitionProviderV2 {
     override fun provideCustomSchemaDefinition(
         javaType: ResolvedType,
         context: SchemaGenerationContext,
     ): CustomDefinition? {
         val rawType = javaType.erasedType
+        customDefinitions[rawType]?.let { definition ->
+            return definition(context)
+        }
+
         if (rawType.isEnum) {
             return null
         }
