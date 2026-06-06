@@ -70,10 +70,16 @@ object AiRequests {
     fun toolOutputs(
         outputs: List<ToolOutput>,
         conversationId: String,
+        model: ChatModel = chatModel,
+        tools: List<Tool> = emptyList(),
     ): ResponseCreateParams {
         return ResponseCreateParams.builder()
+            .model(model)
             .inputOfResponse(outputs.map { output -> output.toResponseInputItem() })
             .conversation(conversationId)
+            .apply {
+                tools.forEach { tool -> addTool(tool) }
+            }
             .build()
     }
 }
