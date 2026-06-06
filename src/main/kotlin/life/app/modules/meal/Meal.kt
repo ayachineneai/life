@@ -2,7 +2,9 @@ package life.app.modules.meal
 
 import life.app.modules.meal.domain.MealType
 import org.jetbrains.exposed.v1.core.Table
+import org.jetbrains.exposed.v1.javatime.date
 import org.jetbrains.exposed.v1.javatime.datetime
+import java.time.LocalDate
 import java.time.LocalDateTime
 import kotlin.uuid.Uuid
 
@@ -16,6 +18,7 @@ data class MealPo(
     val protein: Int? = null,
     val fat: Int? = null,
     val carbs: Int? = null,
+    val occurredDate: LocalDate? = null,
     val occurredTime: LocalDateTime? = null,
     val createTime: LocalDateTime,
     val updateTime: LocalDateTime? = null,
@@ -31,9 +34,14 @@ object MealTable : Table("meal") {
     val protein = integer("protein").nullable()
     val fat = integer("fat").nullable()
     val carbs = integer("carbs").nullable()
+    val occurredDate = date("occurred_date").nullable()
     val occurredTime = datetime("occurred_time").nullable()
     val createTime = datetime("create_time")
     val updateTime = datetime("update_time").nullable()
 
     override val primaryKey = PrimaryKey(id)
+
+    init {
+        uniqueIndex("idx_meal_occurred_date_meal_type", occurredDate, mealType)
+    }
 }

@@ -43,13 +43,10 @@ class MealDao {
     }
 
     fun findByDateAndMealType(date: LocalDate, mealType: MealType): MealPo? {
-        val startAt = date.atStartOfDay()
-        val endAt = date.plusDays(1).atStartOfDay()
-
         return MealTable
             .selectAll()
             .where {
-                occurredTimeInRange(startAt, endAt) and
+                (MealTable.occurredDate eq date) and
                     (MealTable.mealType eq mealType)
             }
             .orderBy(MealTable.occurredTime to SortOrder.DESC)

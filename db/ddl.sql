@@ -9,10 +9,14 @@ CREATE TABLE meal (
     protein         INTEGER,            -- 蛋白质，单位：g
     fat             INTEGER,            -- 脂肪，单位：g
     carbs           INTEGER,            -- 碳水，单位：g
+    occurred_date   DATE,               -- 进餐日期，用于按日期和餐次做唯一约束
     occurred_time   TIMESTAMP,          -- 进餐时间
     create_time     TIMESTAMP NOT NULL, -- 创建时间
     update_time     TIMESTAMP           -- 更新时间
 );
+
+CREATE UNIQUE INDEX idx_meal_occurred_date_meal_type
+    ON meal (occurred_date, meal_type);
 
 -- 会话
 CREATE TABLE conversation (

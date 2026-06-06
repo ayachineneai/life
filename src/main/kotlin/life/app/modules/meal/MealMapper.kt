@@ -15,6 +15,7 @@ object MealMapper {
             protein = meal.protein,
             fat = meal.fat,
             carbs = meal.carbs,
+            occurredDate = meal.occurredTime.toLocalDate(),
             occurredTime = meal.occurredTime,
         )
     }
@@ -39,6 +40,7 @@ object MealMapper {
         row[MealTable.protein] = meal.protein
         row[MealTable.fat] = meal.fat
         row[MealTable.carbs] = meal.carbs
+        row[MealTable.occurredDate] = meal.occurredDate
         row[MealTable.occurredTime] = meal.occurredTime
     }
 
@@ -53,6 +55,7 @@ object MealMapper {
             protein = row[MealTable.protein],
             fat = row[MealTable.fat],
             carbs = row[MealTable.carbs],
+            occurredDate = row[MealTable.occurredDate],
             occurredTime = row[MealTable.occurredTime],
             createTime = row[MealTable.createTime],
             updateTime = row[MealTable.updateTime],
