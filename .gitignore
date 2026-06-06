@@ -3,6 +3,11 @@ build/
 .env
 .env.local
 .env.*.local
+ui/node_modules/
+ui/dist/
+ui/screenshots/
+ui/*.log
+ui/tsconfig.tsbuildinfo
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/
