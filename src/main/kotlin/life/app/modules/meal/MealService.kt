@@ -2,6 +2,7 @@ package life.app.modules.meal
 
 import life.app.ai.tool.annotations.Tool
 import life.app.modules.meal.domain.Meal
+import life.app.modules.meal.domain.MealType
 import life.util.Times
 import life.util.Uuids
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -42,7 +43,12 @@ class MealService(
         )
 
         return transaction {
-            val existingMeal = mealDao.findByDateAndMealType(mealDate, meal.mealType)
+            if (meal.mealType == MealType.SNACK) {
+                mealDao.insert(newMeal)
+                return@transaction newMeal
+            }
+
+            val existingMeal = mealDao.findNonSnackByDateAndMealType(mealDate, meal.mealType)
 
             if (existingMeal != null) {
                 val updated = MealMapper.apply(existingMeal, meal).copy(updateTime = now)

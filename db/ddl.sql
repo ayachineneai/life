@@ -14,8 +14,9 @@ CREATE TABLE meal (
     create_time     TIMESTAMP NOT NULL,
     update_time     TIMESTAMP
 );
-CREATE UNIQUE INDEX idx_meal_occurred_date_meal_type
-    ON meal (occurred_date, meal_type);
+CREATE UNIQUE INDEX idx_meal_occurred_date_meal_type_not_snack
+    ON meal (occurred_date, meal_type)
+    WHERE meal_type <> 'SNACK';
 
 DROP TABLE IF EXISTS conversation;
 CREATE TABLE conversation (

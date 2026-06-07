@@ -2,6 +2,7 @@ package life.app.modules.meal
 
 import life.app.modules.meal.domain.MealType
 import org.jetbrains.exposed.v1.core.Table
+import org.jetbrains.exposed.v1.core.neq
 import org.jetbrains.exposed.v1.javatime.date
 import org.jetbrains.exposed.v1.javatime.datetime
 import java.time.LocalDate
@@ -42,6 +43,10 @@ object MealTable : Table("meal") {
     override val primaryKey = PrimaryKey(id)
 
     init {
-        uniqueIndex("idx_meal_occurred_date_meal_type", occurredDate, mealType)
+        uniqueIndex(
+            customIndexName = "idx_meal_occurred_date_meal_type_not_snack",
+            columns = arrayOf(occurredDate, mealType),
+            filterCondition = { mealType neq MealType.SNACK },
+        )
     }
 }

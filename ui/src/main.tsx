@@ -122,6 +122,13 @@ const mealTypeLabels: Record<MealType, string> = {
   SNACK: "加餐"
 };
 
+const mealTypeOrder: Record<MealType, number> = {
+  BREAKFAST: 0,
+  LUNCH: 1,
+  DINNER: 2,
+  SNACK: 3
+};
+
 function initialChatMessages(): ChatMessage[] {
   return [
     {
@@ -219,7 +226,7 @@ function App() {
       const response = await fetch("/meals/today");
       if (!response.ok) throw new Error(await response.text());
       const data = (await response.json()) as MealListResponse;
-      setMeals(data.meals.map(toMealEntry));
+      setMeals(sortMeals(data.meals.map(toMealEntry)));
       setMealsError("");
     } catch (error) {
       debug("meals load failed", error);
@@ -243,6 +250,14 @@ function App() {
       carbs: meal.carbs || 0,
       fat: meal.fat || 0
     };
+  }
+
+  function sortMeals(items: MealEntry[]) {
+    return [...items].sort((left, right) => {
+      const typeCompare = mealTypeOrder[left.type] - mealTypeOrder[right.type];
+      if (typeCompare !== 0) return typeCompare;
+      return left.occurredTime.localeCompare(right.occurredTime);
+    });
   }
 
   function askAiToRecord(meal: MealEntry) {

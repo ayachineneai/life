@@ -42,7 +42,7 @@ class MealDao {
             .map { row -> MealMapper.toPo(row) }
     }
 
-    fun findByDateAndMealType(date: LocalDate, mealType: MealType): MealPo? {
+    fun findNonSnackByDateAndMealType(date: LocalDate, mealType: MealType): MealPo? {
         return MealTable
             .selectAll()
             .where {
