@@ -31,7 +31,8 @@ class ToolCallHandler(
             val args = arguments(tool, functionCall)
             ToolResult.success(tool.name, normalize(invoke(tool, args)))
         }.getOrElse { error ->
-            ToolResult.failure(functionCall.name(), toolError(functionCall, error))
+            error.printStackTrace()
+            ToolResult.failure(functionCall.name(), toolError(error))
         }
         return output(functionCall.callId(), result)
     }
@@ -63,13 +64,8 @@ class ToolCallHandler(
         }
     }
 
-    private fun toolError(call: ResponseFunctionToolCall, error: Throwable): ToolError {
+    private fun toolError(error: Throwable): ToolError {
         val cause = (error as? InvocationTargetException)?.targetException ?: error
-        val header = "Tool call failed: name=${call.name()} callId=${call.callId()}"
-        println(header)
-        System.err.println(header)
-        cause.printStackTrace(System.out)
-        cause.printStackTrace(System.err)
         val message = cause.message ?: cause::class.qualifiedName ?: "Tool call failed"
         return ToolError(code = "tool_execution_error", message = message)
     }

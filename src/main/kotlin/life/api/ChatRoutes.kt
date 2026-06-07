@@ -1,11 +1,10 @@
-package life.app.ai.http
+package life.api
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
-import io.ktor.server.application.call
 import io.ktor.server.request.receiveText
 import io.ktor.server.response.header
 import io.ktor.server.response.respondOutputStream
@@ -22,9 +21,9 @@ import life.util.Uuids
 import org.slf4j.LoggerFactory
 import java.util.UUID
 
-private val logger = LoggerFactory.getLogger("life.app.ai.http.AgentRoutes")
+private val logger = LoggerFactory.getLogger("life.api.ChatRoutes")
 
-fun Application.agentRoutes(
+fun Application.chatRoutes(
     mainLoopFactory: MainLoopFactory,
     conversationService: ConversationService,
     mapper: ObjectMapper,
@@ -113,9 +112,6 @@ fun Application.agentRoutes(
             }
         }
 
-        get("/health") {
-            call.respondText("OK")
-        }
     }
 }
 

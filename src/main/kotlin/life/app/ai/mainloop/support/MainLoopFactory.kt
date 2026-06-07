@@ -8,7 +8,7 @@ import life.infra.sse.SseWriter
 class MainLoopFactory(
     private val client: OpenAIClient,
     private val conversationService: ConversationService,
-    private val tools: AgentTools,
+    private val tools: MainLoopTools,
     private val config: MainLoopConfig,
 ) {
     fun create(sse: SseWriter): MainLoop {

@@ -2,14 +2,13 @@ package life.app.ai.mainloop
 
 import com.openai.client.OpenAIClient
 import life.app.ai.conversation.ConversationService
-import life.app.ai.http.sendAgentEvent
 import life.app.ai.mainloop.data.ActResult
 import life.app.ai.mainloop.data.PreparedTurn
 import life.app.ai.mainloop.data.RespondResult
 import life.app.ai.mainloop.data.ThinkResult
 import life.app.ai.mainloop.support.AgentStreamEvents
-import life.app.ai.mainloop.support.AgentTools
 import life.app.ai.mainloop.support.MainLoopConfig
+import life.app.ai.mainloop.support.MainLoopTools
 import life.app.ai.mainloop.support.TurnPhase
 import life.app.ai.mainloop.support.TurnStatus
 import life.app.ai.mainloop.support.ToolState
@@ -17,13 +16,14 @@ import life.app.ai.utils.AiRequests
 import life.app.ai.utils.AiRuns
 import life.app.ai.utils.hasToolCall
 import life.app.ai.utils.outputText
+import life.app.ai.utils.sendAgentEvent
 import life.infra.sse.SseWriter
 import kotlin.uuid.Uuid
 
 class MainLoop(
     private val client: OpenAIClient,
     private val conversationService: ConversationService,
-    private val tools: AgentTools,
+    private val tools: MainLoopTools,
     private val config: MainLoopConfig,
     private val sse: SseWriter,
 ) {
@@ -31,10 +31,18 @@ class MainLoop(
         conversationId: Uuid?,
         message: String,
     ): RespondResult {
-        val preparedTurn = prepareConversation(conversationId, message)
-        val thinkResult = think(preparedTurn)
-        act(preparedTurn, thinkResult)
-        return respond(preparedTurn)
+        try {
+            val preparedTurn = prepareConversation(conversationId, message)
+            val thinkResult = think(preparedTurn)
+            act(preparedTurn, thinkResult)
+            val respondResult = respond(preparedTurn)
+            complete(preparedTurn, respondResult)
+            return respondResult
+        } catch (error: Throwable) {
+            sse.sendAgentEvent(AgentStreamEvents.status(TurnStatus.FAILED))
+            sse.sendAgentEvent(AgentStreamEvents.error(error.message ?: "Main loop failed"))
+            throw error
+        }
     }
 
     fun prepareConversation(
@@ -215,6 +223,21 @@ class MainLoop(
             responseId = response.id(),
             text = text.toString(),
         )
+    }
+
+    private fun complete(
+        preparedTurn: PreparedTurn,
+        respondResult: RespondResult,
+    ) {
+        conversationService.appendTurn(
+            conversationId = preparedTurn.conversationId,
+            userInput = preparedTurn.message,
+            modelOutput = respondResult.text,
+            openaiResponseId = respondResult.responseId,
+            model = config.executorModel.toString(),
+        )
+        sse.sendAgentEvent(AgentStreamEvents.status(TurnStatus.COMPLETED))
+        sse.sendAgentEvent(AgentStreamEvents.done(respondResult.responseId))
     }
 
 }

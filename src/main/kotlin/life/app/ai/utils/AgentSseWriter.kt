@@ -1,4 +1,4 @@
-package life.app.ai.http
+package life.app.ai.utils
 
 import life.app.ai.mainloop.support.Event
 import life.infra.sse.SseWriter
