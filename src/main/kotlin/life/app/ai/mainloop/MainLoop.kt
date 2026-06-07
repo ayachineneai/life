@@ -18,6 +18,7 @@ import life.app.ai.utils.hasToolCall
 import life.app.ai.utils.outputText
 import life.app.ai.utils.sendAgentEvent
 import life.infra.sse.SseWriter
+import life.util.Times
 import kotlin.uuid.Uuid
 
 class MainLoop(
@@ -87,6 +88,8 @@ class MainLoop(
                 model = config.plannerModel,
                 systemPrompt = """
                     Create a concise action plan for the current user request.
+                    Current local date/time in Asia/Shanghai: ${Times.now()}.
+                    Resolve relative dates such as today, tomorrow, lunch, and dinner from this local date/time.
                     Do not call tools in this phase.
                     Do not answer the user directly.
                     Output only the plan text.
@@ -123,6 +126,8 @@ class MainLoop(
             model = config.executorModel,
             systemPrompt = """
                 Execute the plan below for the current user request.
+                Current local date/time in Asia/Shanghai: ${Times.now()}.
+                Resolve relative dates such as today, tomorrow, lunch, and dinner from this local date/time.
                 Use available tools when needed.
                 Do not provide the final user-facing response in this phase.
                 When no more tool calls are needed, output exactly ACTION_COMPLETE.
@@ -200,6 +205,7 @@ class MainLoop(
                 model = config.executorModel,
                 systemPrompt = """
                     Provide the final user-facing response for the current user request.
+                    Current local date/time in Asia/Shanghai: ${Times.now()}.
                     Use the prior plan and any tool results already in the conversation.
                     Do not mention internal planning or ACTION_COMPLETE.
                 """.trimIndent(),

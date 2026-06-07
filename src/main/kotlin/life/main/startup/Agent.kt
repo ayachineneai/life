@@ -6,12 +6,13 @@ import com.openai.client.OpenAIClient
 import com.openai.client.okhttp.OpenAIOkHttpClient
 import io.github.cdimascio.dotenv.Dotenv
 import life.app.ai.conversation.ConversationService
-import life.app.ai.tool.handler.ToolCallHandler
-import life.app.ai.tool.scan.ToolScanner
 import life.app.ai.mainloop.support.MainLoopConfig
 import life.app.ai.mainloop.support.MainLoopFactory
 import life.app.ai.mainloop.support.MainLoopTools
+import life.app.ai.tool.handler.ToolCallHandler
+import life.app.ai.tool.scan.ToolScanner
 import life.app.di.appModule
+import life.app.modules.meal.MealService
 import life.infra.proxy.ProxyConfig
 import org.koin.core.Koin
 import org.koin.core.context.GlobalContext
@@ -21,6 +22,7 @@ import org.koin.dsl.module
 data class AgentDependencies(
     val mainLoopFactory: MainLoopFactory,
     val conversationService: ConversationService,
+    val mealService: MealService,
     val mapper: ObjectMapper,
 )
 
@@ -35,6 +37,7 @@ object Agent {
             handler = ToolCallHandler(registry, koin),
         )
         val conversationService = koin.get<ConversationService>()
+        val mealService = koin.get<MealService>()
 
         return AgentDependencies(
             mainLoopFactory = MainLoopFactory(
@@ -44,6 +47,7 @@ object Agent {
                 config = MainLoopConfig(),
             ),
             conversationService = conversationService,
+            mealService = mealService,
             mapper = mapper,
         )
     }

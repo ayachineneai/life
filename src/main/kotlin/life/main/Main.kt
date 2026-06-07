@@ -8,6 +8,7 @@ import io.ktor.server.netty.Netty
 import io.ktor.server.plugins.calllogging.CallLogging
 import life.api.chatRoutes
 import life.api.healthRoutes
+import life.api.mealRoutes
 import life.main.startup.Agent
 import life.main.startup.AgentDependencies
 import life.main.startup.DatabaseStartup
@@ -33,6 +34,10 @@ fun Application.lifeApplication(agent: AgentDependencies) {
     chatRoutes(
         mainLoopFactory = agent.mainLoopFactory,
         conversationService = agent.conversationService,
+        mapper = agent.mapper,
+    )
+    mealRoutes(
+        mealService = agent.mealService,
         mapper = agent.mapper,
     )
 }

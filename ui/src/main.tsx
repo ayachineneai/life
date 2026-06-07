@@ -25,11 +25,28 @@ type MealEntry = {
   title: string;
   type: MealType;
   time: string;
+  occurredTime: string;
   content: string;
   calories: number;
   protein: number;
   carbs: number;
   fat: number;
+};
+
+type MealRecord = {
+  id: string;
+  title?: string | null;
+  mealType?: MealType | null;
+  content?: string | null;
+  calories?: number | null;
+  protein?: number | null;
+  carbs?: number | null;
+  fat?: number | null;
+  occurredTime?: string | null;
+};
+
+type MealListResponse = {
+  meals: MealRecord[];
 };
 
 type ChatRole = "user" | "assistant" | "system";
@@ -59,11 +76,6 @@ type ChatConversationsResponse = {
   conversations: ChatConversationRecord[];
 };
 
-type AgentPlan = {
-  intent?: string;
-  summary: string;
-};
-
 type ToolEvent = {
   id: string;
   phase?: string;
@@ -77,7 +89,7 @@ type ToolEvent = {
 
 type ToolEventPayload = Omit<ToolEvent, "id">;
 
-type ToolState = "arguments_delta" | "arguments_done" | "executing" | "missing_tool" | "result";
+type ToolState = "executing" | "missing_tool" | "result";
 
 type AgentStatus = "PREPARING" | "THINKING" | "USING_TOOL" | "RESPONDING" | "COMPLETED" | "FAILED";
 
@@ -85,66 +97,29 @@ type AgentEvent =
   | { type: "CONVERSATION"; conversationId: string }
   | { type: "STATUS"; status: AgentStatus }
   | { type: "PLAN_DELTA"; text: string }
-  | { type: "PLAN"; plan: AgentPlan }
   | { type: "DELTA"; text: string }
   | ({ type: "TOOL" } & ToolEventPayload)
   | { type: "DONE"; responseId?: string | null }
   | { type: "ERROR"; error: string };
 
 const statusLabels: Record<AgentStatus, string> = {
-  PREPARING: "Preparing",
-  THINKING: "Thinking",
-  USING_TOOL: "Using tool",
-  RESPONDING: "Responding",
-  COMPLETED: "Done",
-  FAILED: "Error"
+  PREPARING: "准备中",
+  THINKING: "规划中",
+  USING_TOOL: "调用工具",
+  RESPONDING: "回复中",
+  COMPLETED: "完成",
+  FAILED: "错误"
 };
 
 const debug = (...args: unknown[]) => {
   console.log("[life-agent]", ...args);
 };
 
-const initialMeals: MealEntry[] = [
-  {
-    id: "meal-1",
-    title: "Power Breakfast",
-    type: "BREAKFAST",
-    time: "08:12",
-    content: "Greek yogurt, blueberries, oat granola",
-    calories: 420,
-    protein: 28,
-    carbs: 46,
-    fat: 12
-  },
-  {
-    id: "meal-2",
-    title: "Pepper Pork Lunch",
-    type: "LUNCH",
-    time: "12:38",
-    content: "Hunan pepper fried pork, steamed rice",
-    calories: 830,
-    protein: 36,
-    carbs: 92,
-    fat: 34
-  },
-  {
-    id: "meal-3",
-    title: "Evening Reset",
-    type: "DINNER",
-    time: "18:44",
-    content: "Salmon, greens, roasted potatoes",
-    calories: 610,
-    protein: 42,
-    carbs: 48,
-    fat: 24
-  }
-];
-
 const mealTypeLabels: Record<MealType, string> = {
-  BREAKFAST: "Breakfast",
-  LUNCH: "Lunch",
-  DINNER: "Dinner",
-  SNACK: "Snack"
+  BREAKFAST: "早餐",
+  LUNCH: "午餐",
+  DINNER: "晚餐",
+  SNACK: "加餐"
 };
 
 function initialChatMessages(): ChatMessage[] {
@@ -152,17 +127,18 @@ function initialChatMessages(): ChatMessage[] {
     {
       id: crypto.randomUUID(),
       role: "assistant",
-      text: "Tell me what you ate, or ask me to record a meal. I can call tools and show every step."
+      text: "告诉我你吃了什么，或者让我帮你记录一餐。我会在需要时调用工具，并把过程展示出来。"
     }
   ];
 }
 
 function App() {
-  const [meals, setMeals] = React.useState(initialMeals);
+  const [meals, setMeals] = React.useState<MealEntry[]>([]);
+  const [mealsLoading, setMealsLoading] = React.useState(true);
+  const [mealsError, setMealsError] = React.useState("");
   const [messages, setMessages] = React.useState<ChatMessage[]>(() => initialChatMessages());
-  const [input, setInput] = React.useState("Record my lunch: Hunan pepper fried pork and one bowl of rice.");
-  const [status, setStatus] = React.useState("Ready");
-  const [plan, setPlan] = React.useState<AgentPlan | null>(null);
+  const [input, setInput] = React.useState("记录我的午餐：湖南辣椒小炒肉和一碗米饭。");
+  const [status, setStatus] = React.useState("就绪");
   const [planDraft, setPlanDraft] = React.useState("");
   const [tools, setTools] = React.useState<ToolEvent[]>([]);
   const [streaming, setStreaming] = React.useState(false);
@@ -195,37 +171,83 @@ function App() {
 
   React.useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, plan, planDraft, tools, status]);
+  }, [messages, planDraft, tools, status]);
 
   React.useEffect(() => {
     void loadRecentConversations();
+    void loadTodayMeals();
   }, []);
 
-  function addManualMeal(event: React.FormEvent) {
+  async function addManualMeal(event: React.FormEvent) {
     event.preventDefault();
     if (!draftMeal.title.trim() || !draftMeal.content.trim()) return;
     const now = new Date();
     const calories = Number(draftMeal.calories) || 0;
-    setMeals((current) => [
-      {
-        id: crypto.randomUUID(),
-        title: draftMeal.title.trim(),
-        type: draftMeal.type,
-        time: now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        content: draftMeal.content.trim(),
-        calories,
-        protein: Math.round(calories * 0.08),
-        carbs: Math.round(calories * 0.13),
-        fat: Math.round(calories * 0.04)
-      },
-      ...current
-    ]);
-    setDraftMeal({ title: "", type: "SNACK", calories: "260", content: "" });
+    const protein = Math.round(calories * 0.08);
+    const carbs = Math.round(calories * 0.13);
+    const fat = Math.round(calories * 0.04);
+
+    try {
+      const response = await fetch("/meals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: draftMeal.title.trim(),
+          mealType: draftMeal.type,
+          content: draftMeal.content.trim(),
+          remark: null,
+          calories,
+          protein,
+          carbs,
+          fat,
+          occurredTime: toLocalDateTime(now)
+        })
+      });
+
+      if (!response.ok) throw new Error(await response.text());
+      setDraftMeal({ title: "", type: "SNACK", calories: "260", content: "" });
+      await loadTodayMeals();
+    } catch (error) {
+      debug("meal create failed", error);
+      setMealsError("餐食保存失败");
+    }
+  }
+
+  async function loadTodayMeals() {
+    setMealsLoading(true);
+    try {
+      const response = await fetch("/meals/today");
+      if (!response.ok) throw new Error(await response.text());
+      const data = (await response.json()) as MealListResponse;
+      setMeals(data.meals.map(toMealEntry));
+      setMealsError("");
+    } catch (error) {
+      debug("meals load failed", error);
+      setMealsError("餐食记录暂不可用");
+    } finally {
+      setMealsLoading(false);
+    }
+  }
+
+  function toMealEntry(meal: MealRecord): MealEntry {
+    const type = meal.mealType || "SNACK";
+    return {
+      id: meal.id,
+      title: meal.title || mealTypeLabels[type],
+      type,
+      time: mealTime(meal.occurredTime),
+      occurredTime: meal.occurredTime || "",
+      content: meal.content || "",
+      calories: meal.calories || 0,
+      protein: meal.protein || 0,
+      carbs: meal.carbs || 0,
+      fat: meal.fat || 0
+    };
   }
 
   function askAiToRecord(meal: MealEntry) {
     setInput(
-      `Record this ${mealTypeLabels[meal.type].toLowerCase()}: ${meal.content}. Estimated ${meal.calories} kcal.`
+      `帮我记录这顿${mealTypeLabels[meal.type]}：${meal.content}。估算 ${meal.calories} kcal。`
     );
   }
 
@@ -241,9 +263,8 @@ function App() {
     pumping.current = false;
     setMessages((current) => [...current, userMessage, assistantMessage]);
     setTools([]);
-    setPlan(null);
     setPlanDraft("");
-    setStatus("Connecting");
+    setStatus("连接中");
     debug("chat send", { conversationId: conversationId || null, messageLength: message.length });
     setInput("");
     setStreaming(true);
@@ -266,12 +287,12 @@ function App() {
 
       await readSse(response.body);
     } catch (error) {
-      const text = error instanceof Error ? error.message : "Chat stream failed";
+      const text = error instanceof Error ? error.message : "聊天流失败";
       debug("chat failed", text, error);
-      setStatus("Error");
+      setStatus("错误");
       setMessages((current) =>
         current.map((item) =>
-          item.id === assistantId.current ? { ...item, text: item.text ? `${item.text}\n\nError: ${text}` : `Error: ${text}` } : item
+          item.id === assistantId.current ? { ...item, text: item.text ? `${item.text}\n\n错误：${text}` : `错误：${text}` } : item
         )
       );
     } finally {
@@ -330,12 +351,7 @@ function App() {
         return;
       case "PLAN_DELTA":
         setPlanDraft((current) => current + event.text);
-        setStatus("Planning");
-        return;
-      case "PLAN":
-        setPlan(event.plan);
-        setPlanDraft("");
-        setStatus("Plan ready");
+        setStatus("规划中");
         return;
       case "DELTA":
         enqueueText(event.text);
@@ -345,14 +361,16 @@ function App() {
         upsertTool(event);
         return;
       case "DONE":
-        setStatus("Done");
+        flushQueuedText();
+        setStatus("完成");
         void loadRecentConversations();
+        void loadTodayMeals();
         return;
       case "ERROR":
         setStatus(event.error);
         setMessages((current) =>
           current.map((item) =>
-            item.id === assistantId.current ? { ...item, text: item.text ? `${item.text}\n\nError: ${event.error}` : `Error: ${event.error}` } : item
+            item.id === assistantId.current ? { ...item, text: item.text ? `${item.text}\n\n错误：${event.error}` : `错误：${event.error}` } : item
           )
         );
     }
@@ -377,7 +395,7 @@ function App() {
       setMessages(messagesFromTurns(latest.turns));
     } catch (error) {
       debug("conversation history load failed", error);
-      setHistoryError("History unavailable");
+      setHistoryError("历史记录暂不可用");
     }
   }
 
@@ -385,25 +403,23 @@ function App() {
     if (streaming) return;
     setConversationId(conversation.id);
     setMessages(messagesFromTurns(conversation.turns));
-    setPlan(null);
     setPlanDraft("");
     setTools([]);
-    setStatus("Ready");
+    setStatus("就绪");
   }
 
   function startNewConversation() {
     if (streaming) return;
     setConversationId("");
     setMessages(initialChatMessages());
-    setPlan(null);
     setPlanDraft("");
     setTools([]);
-    setStatus("Ready");
+    setStatus("就绪");
   }
 
   function enqueueText(delta: string) {
     textQueue.current += delta;
-    setStatus("Streaming");
+    setStatus("回复中");
     if (!pumping.current) pumpText();
   }
 
@@ -421,6 +437,18 @@ function App() {
       )
     );
     window.setTimeout(pumpText, next.charCodeAt(0) > 127 ? 18 : 10);
+  }
+
+  function flushQueuedText() {
+    const rest = textQueue.current;
+    if (!rest) return;
+    textQueue.current = "";
+    pumping.current = false;
+    setMessages((current) =>
+      current.map((item) =>
+        item.id === assistantId.current ? { ...item, text: item.text + rest } : item
+      )
+    );
   }
 
   function upsertTool(tool: ToolEventPayload) {
@@ -444,21 +472,21 @@ function App() {
               <Sparkles size={20} />
             </div>
             <div>
-              <h1>Life Agent</h1>
-              <p>Diet intelligence with tool-aware chat</p>
+              <h1>生活助手</h1>
+              <p>饮食记录与智能对话</p>
             </div>
           </div>
           <div className="date-pill">
             <CalendarDays size={17} />
-            <span>{new Date().toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</span>
+            <span>{new Date().toLocaleDateString("zh-CN", { weekday: "short", month: "short", day: "numeric" })}</span>
           </div>
         </header>
 
         <section className="hero-band">
           <div>
-            <p className="eyebrow">Today&apos;s Nutrition</p>
+            <p className="eyebrow">今日营养</p>
             <h2>{totals.calories.toLocaleString()} kcal</h2>
-            <p className="hero-copy">A clean daily readout for meals, macros, and AI-assisted logging.</p>
+            <p className="hero-copy">清晰查看今天的餐食、宏量营养和 AI 辅助记录。</p>
           </div>
           <div className="rings" aria-hidden="true">
             <div className="ring ring-cal">{Math.min(100, Math.round((totals.calories / 2200) * 100))}%</div>
@@ -467,22 +495,27 @@ function App() {
         </section>
 
         <section className="metric-grid">
-          <Metric icon={<Flame />} label="Calories" value={`${totals.calories}`} tone="warm" />
-          <Metric icon={<Activity />} label="Protein" value={`${totals.protein}g`} tone="mint" />
-          <Metric icon={<Zap />} label="Carbs" value={`${totals.carbs}g`} tone="blue" />
-          <Metric icon={<Target />} label="Fat" value={`${totals.fat}g`} tone="pink" />
+          <Metric icon={<Flame />} label="热量" value={`${totals.calories}`} tone="warm" />
+          <Metric icon={<Activity />} label="蛋白质" value={`${totals.protein}g`} tone="mint" />
+          <Metric icon={<Zap />} label="碳水" value={`${totals.carbs}g`} tone="blue" />
+          <Metric icon={<Target />} label="脂肪" value={`${totals.fat}g`} tone="pink" />
         </section>
 
         <section className="content-grid">
           <section className="panel meal-panel">
             <div className="panel-head">
               <div>
-                <h3>Meal Timeline</h3>
-                <p>Tap a meal to hand it to the agent.</p>
+                <h3>餐食时间线</h3>
+                <p>点击餐食，让 AI 帮你整理成记录。</p>
               </div>
               <Utensils size={19} />
             </div>
             <div className="meal-list">
+              {mealsLoading && <div className="meal-empty">正在读取数据库...</div>}
+              {!mealsLoading && mealsError && <div className="meal-empty">{mealsError}</div>}
+              {!mealsLoading && !mealsError && meals.length === 0 && (
+                <div className="meal-empty">今天还没有餐食记录</div>
+              )}
               {meals.map((meal) => (
                 <button className="meal-row" key={meal.id} onClick={() => askAiToRecord(meal)}>
                   <div className="meal-icon">
@@ -497,9 +530,9 @@ function App() {
                     <div className="macro-line">
                       <span>{mealTypeLabels[meal.type]}</span>
                       <span>{meal.calories} kcal</span>
-                      <span>P {meal.protein}g</span>
-                      <span>C {meal.carbs}g</span>
-                      <span>F {meal.fat}g</span>
+                      <span>蛋白 {meal.protein}g</span>
+                      <span>碳水 {meal.carbs}g</span>
+                      <span>脂肪 {meal.fat}g</span>
                     </div>
                   </div>
                 </button>
@@ -510,31 +543,31 @@ function App() {
           <section className="panel form-panel">
             <div className="panel-head">
               <div>
-                <h3>Quick Add</h3>
-                <p>Local scratchpad while the agent handles durable records.</p>
+                <h3>快速添加</h3>
+                <p>直接写入数据库，左侧列表会自动刷新。</p>
               </div>
               <Plus size={19} />
             </div>
             <form onSubmit={addManualMeal} className="meal-form">
               <label>
-                <span>Title</span>
+                <span>标题</span>
                 <input
                   value={draftMeal.title}
                   onChange={(event) => setDraftMeal({ ...draftMeal, title: event.target.value })}
-                  placeholder="Late snack"
+                  placeholder="夜宵"
                 />
               </label>
               <label>
-                <span>Content</span>
+                <span>内容</span>
                 <textarea
                   value={draftMeal.content}
                   onChange={(event) => setDraftMeal({ ...draftMeal, content: event.target.value })}
-                  placeholder="Apple, almonds, tea"
+                  placeholder="苹果、杏仁、茶"
                 />
               </label>
               <div className="form-pair">
                 <label>
-                  <span>Type</span>
+                  <span>类型</span>
                   <select
                     value={draftMeal.type}
                     onChange={(event) =>
@@ -549,7 +582,7 @@ function App() {
                   </select>
                 </label>
                 <label>
-                  <span>Calories</span>
+                  <span>热量</span>
                   <input
                     value={draftMeal.calories}
                     onChange={(event) => setDraftMeal({ ...draftMeal, calories: event.target.value })}
@@ -559,7 +592,7 @@ function App() {
               </div>
               <button className="primary-button" type="submit">
                 <Plus size={16} />
-                <span>Add meal</span>
+                <span>添加餐食</span>
               </button>
             </form>
           </section>
@@ -569,8 +602,8 @@ function App() {
       <aside className="chat-panel">
         <div className="chat-head">
           <div>
-            <p className="eyebrow">AI Agent</p>
-            <h2>Tool Chat</h2>
+            <p className="eyebrow">AI 助手</p>
+            <h2>智能对话</h2>
           </div>
           <div className={`status-dot ${streaming ? "live" : ""}`}>
             {streaming ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}
@@ -580,15 +613,15 @@ function App() {
 
         <div className="conversation-history">
           <div className="conversation-history-head">
-            <span>History</span>
+            <span>历史记录</span>
             <button disabled={streaming} onClick={startNewConversation} type="button">
               <Plus size={14} />
-              <span>New</span>
+              <span>新建</span>
             </button>
           </div>
           <div className="conversation-list">
             {historyError && <div className="conversation-empty">{historyError}</div>}
-            {!historyError && conversations.length === 0 && <div className="conversation-empty">No conversations yet</div>}
+            {!historyError && conversations.length === 0 && <div className="conversation-empty">暂无会话</div>}
             {!historyError && conversations.map((conversation) => (
               <button
                 className={`conversation-row ${conversation.id === conversationId ? "active" : ""}`}
@@ -607,10 +640,10 @@ function App() {
         </div>
 
         <div className="chat-scroll" ref={scrollRef}>
-          {(plan || planDraft) && (
+          {planDraft && (
             <div className="plan-strip">
               <Bot size={17} />
-              <span>{plan?.summary || planDraft}</span>
+              <span>{planDraft}</span>
             </div>
           )}
 
@@ -620,7 +653,7 @@ function App() {
                 {message.role === "assistant" ? <Bot size={16} /> : <MessageCircle size={16} />}
               </div>
               <div className="message-bubble">
-                {message.text || (message.role === "assistant" && streaming ? "Thinking..." : "")}
+                {message.text || (message.role === "assistant" && streaming ? "思考中..." : "")}
               </div>
             </div>
           ))}
@@ -630,8 +663,8 @@ function App() {
               {tools.map((tool) => (
                 <div className={`tool-card state-${tool.state}`} key={tool.id}>
                   <div className="tool-card-head">
-                    <span>{tool.name || "Tool call"}</span>
-                    <b>{tool.state}</b>
+                    <span>{tool.name || "工具调用"}</span>
+                    <b>{toolStateLabel(tool.state)}</b>
                   </div>
                   <pre>{formatTool(tool)}</pre>
                 </div>
@@ -644,7 +677,7 @@ function App() {
           <textarea
             value={input}
             onChange={(event) => setInput(event.target.value)}
-            placeholder="Ask the agent to record, inspect, or summarize a meal..."
+            placeholder="让 AI 帮你记录、检查或总结一餐..."
             disabled={streaming}
           />
           <button className="send-button" disabled={streaming || !input.trim()} type="submit">
@@ -678,10 +711,10 @@ function Metric({
 
 function formatTool(tool: ToolEvent) {
   const payload = {
-    phase: tool.phase,
-    callId: tool.callId,
-    arguments: parseJson(tool.arguments),
-    result: tool.result
+    阶段: tool.phase,
+    调用ID: tool.callId,
+    参数: parseJson(tool.arguments),
+    结果: tool.result
   };
   return JSON.stringify(payload, null, 2);
 }
@@ -709,7 +742,7 @@ function messagesFromTurns(turns: ChatTurnRecord[]) {
 }
 
 function conversationTitle(conversation: ChatConversationRecord) {
-  const title = conversation.title || conversation.turns[0]?.userInput || "Untitled chat";
+  const title = conversation.title || conversation.turns[0]?.userInput || "未命名会话";
   return title.length <= 28 ? title : `${title.slice(0, 28)}...`;
 }
 
@@ -718,20 +751,45 @@ function conversationTime(value: string) {
   return value.replace("T", " ").slice(0, 16);
 }
 
+function mealTime(value?: string | null) {
+  if (!value) return "--:--";
+  return value.replace("T", " ").slice(11, 16);
+}
+
+function toLocalDateTime(value: Date) {
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return [
+    value.getFullYear(),
+    pad(value.getMonth() + 1),
+    pad(value.getDate()),
+  ].join("-") + "T" + [
+    pad(value.getHours()),
+    pad(value.getMinutes()),
+    pad(value.getSeconds()),
+  ].join(":");
+}
+
 function toolStatus(tool: ToolEventPayload) {
   switch (tool.state) {
-    case "arguments_delta":
-      return "Preparing tool call";
-    case "arguments_done":
-      return tool.name ? `Tool arguments ready: ${tool.name}` : "Tool arguments ready";
     case "executing":
-      return tool.name ? `Executing tool: ${tool.name}` : "Executing tool";
+      return tool.name ? `正在执行工具：${tool.name}` : "正在执行工具";
     case "missing_tool":
-      return tool.name ? `Missing tool implementation: ${tool.name}` : "Missing tool implementation";
+      return tool.name ? `缺少工具实现：${tool.name}` : "缺少工具实现";
     case "result":
-      return "Tool execution completed";
+      return "工具执行完成";
     default:
-      return "Tool activity";
+      return "工具活动";
+  }
+}
+
+function toolStateLabel(state: ToolState) {
+  switch (state) {
+    case "executing":
+      return "执行中";
+    case "missing_tool":
+      return "缺少工具";
+    case "result":
+      return "已完成";
   }
 }
 
