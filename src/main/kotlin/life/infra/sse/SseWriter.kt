@@ -1,7 +1,6 @@
 package life.infra.sse
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.json.JsonMapper
 import java.io.Closeable
 import java.io.Flushable
 import java.io.OutputStream
@@ -10,6 +9,7 @@ import java.nio.charset.StandardCharsets.UTF_8
 
 class SseWriter(
     private val output: OutputStream,
+    private val mapper: ObjectMapper,
     private val charset: Charset = UTF_8,
 ) : Closeable, Flushable {
     @Synchronized
@@ -26,21 +26,30 @@ class SseWriter(
         send(SseEvent.named(event = event, data = data, id = id, retry = retry))
     }
 
+    fun sendJson(data: Any?, type: Class<*>? = null) {
+        send(json(data, type))
+    }
+
     fun sendJson(
         event: String,
         data: Any?,
         id: String? = null,
         retry: Long? = null,
-        mapper: ObjectMapper
+        type: Class<*>? = null,
     ) {
         send(
             event = SseEvent.named(
                 event = event,
-                data = mapper.writeValueAsString(data),
+                data = json(data, type),
                 id = id,
                 retry = retry,
             )
         )
+    }
+
+    private fun json(data: Any?, type: Class<*>?): String {
+        val writer = type?.let { mapper.writerFor(it) } ?: mapper.writer()
+        return writer.writeValueAsString(data)
     }
 
     fun comment(comment: String = "") {

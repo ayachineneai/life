@@ -1,11 +1,14 @@
 package life.infra.sse
 
+import com.fasterxml.jackson.databind.json.JsonMapper
 import java.io.ByteArrayOutputStream
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 class SseEventTest {
+    private val mapper = JsonMapper.builder().findAndAddModules().build()
+
     @Test
     fun `encodes named multiline event`() {
         val encoded = SseEvent.named(
@@ -45,7 +48,7 @@ class SseEventTest {
     @Test
     fun `writer sends and flushes events`() {
         val output = ByteArrayOutputStream()
-        val writer = SseWriter(output)
+        val writer = SseWriter(output, mapper)
 
         writer.send("chat.delta", """{"text":"hi"}""")
         writer.comment("done")

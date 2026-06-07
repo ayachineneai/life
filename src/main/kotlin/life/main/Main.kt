@@ -1,4 +1,4 @@
-package life
+package life.main
 
 import io.github.cdimascio.dotenv.Dotenv
 import io.ktor.server.application.Application
@@ -9,12 +9,14 @@ import io.ktor.server.plugins.calllogging.CallLogging
 import life.app.ai.AgentRuntime
 import life.app.ai.AgentRuntimes
 import life.app.ai.http.agentRoutes
+import life.main.startup.DatabaseStartup
 import org.slf4j.LoggerFactory
 
 private val logger = LoggerFactory.getLogger("life.Main")
 
 fun main() {
-    val dotenv = Dotenv.configure().ignoreIfMissing().load()
+    val dotenv = Dotenv.load()
+    DatabaseStartup.start(dotenv)
     val runtime = AgentRuntimes.create(dotenv)
     val port = AgentRuntimes.port(dotenv)
     logger.info("Starting Life Agent server on port {}", port)
@@ -27,7 +29,8 @@ fun main() {
 fun Application.agentApplication(runtime: AgentRuntime) {
     install(CallLogging)
     agentRoutes(
-        mainLoop = runtime.mainLoop,
+        mainLoopFactory = runtime.mainLoopFactory,
+        conversationService = runtime.conversationService,
         mapper = runtime.mapper,
     )
 }

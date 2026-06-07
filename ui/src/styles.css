@@ -448,7 +448,7 @@ select option {
   height: calc(100vh - 36px);
   min-height: 720px;
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto auto 1fr auto;
   padding: 16px;
   position: sticky;
   top: 18px;
@@ -461,6 +461,98 @@ select option {
 
 .status-dot.live {
   color: #91e0c5;
+}
+
+.conversation-history {
+  padding: 12px 0 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, .09);
+}
+
+.conversation-history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  color: #9ba5b7;
+  font-size: 12px;
+  font-weight: 760;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.conversation-history-head button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 9px;
+  border: 1px solid rgba(145, 224, 197, .32);
+  border-radius: 8px;
+  background: rgba(145, 224, 197, .1);
+  color: #dffcf2;
+  font-size: 12px;
+  font-weight: 720;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.conversation-list {
+  max-height: 176px;
+  overflow: auto;
+  display: grid;
+  gap: 6px;
+  scrollbar-width: thin;
+}
+
+.conversation-row {
+  min-width: 0;
+  height: 36px;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  padding: 0 9px;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .055);
+  color: #c7d0df;
+  text-align: left;
+}
+
+.conversation-row span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conversation-row time {
+  color: #798397;
+  font-size: 11px;
+}
+
+.conversation-row.active {
+  border-color: rgba(145, 224, 197, .45);
+  background: rgba(145, 224, 197, .12);
+  color: #eafff7;
+}
+
+.conversation-empty {
+  min-height: 36px;
+  display: grid;
+  align-items: center;
+  padding: 0 9px;
+  border: 1px dashed rgba(255, 255, 255, .13);
+  border-radius: 8px;
+  color: #9ba5b7;
+  font-size: 12px;
+}
+
+.conversation-row:disabled,
+.conversation-history-head button:disabled {
+  cursor: not-allowed;
+  opacity: .62;
 }
 
 .spin {

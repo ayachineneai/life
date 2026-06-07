@@ -9,7 +9,7 @@ import java.time.LocalDateTime
 import kotlin.uuid.Uuid
 
 class MealService(
-    private val mealDao: MealDao = MealDao(),
+    private val mealDao: MealDao
 ) {
     fun listByOccurredTimeRange(
         startTime: LocalDateTime,

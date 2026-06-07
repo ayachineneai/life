@@ -27,10 +27,11 @@ class ConversationDao {
             ?.let { row -> ConversationMapper.toConversationPo(row) }
     }
 
-    fun listConversations(): List<ConversationPo> {
+    fun listConversations(limit: Int = 10): List<ConversationPo> {
         return ConversationTable
             .selectAll()
             .orderBy(ConversationTable.lastActiveTime to SortOrder.DESC)
+            .limit(limit)
             .map { row -> ConversationMapper.toConversationPo(row) }
     }
 

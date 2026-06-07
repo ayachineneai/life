@@ -1,10 +1,14 @@
 package life.app.di
 
+import life.app.ai.conversation.ConversationDao
 import life.app.ai.conversation.ConversationService
+import life.app.modules.meal.MealDao
 import life.app.modules.meal.MealService
 import org.koin.dsl.module
 
 val appModule = module {
-    single { ConversationService() }
-    single { MealService() }
+    single { ConversationDao() }
+    single { ConversationService(get()) }
+    single { MealDao() }
+    single { MealService(get()) }
 }

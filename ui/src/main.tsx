@@ -40,6 +40,25 @@ type ChatMessage = {
   text: string;
 };
 
+type ChatTurnRecord = {
+  id: string;
+  userInput?: string | null;
+  modelOutput?: string | null;
+  createTime: string;
+};
+
+type ChatConversationRecord = {
+  id: string;
+  title?: string | null;
+  createTime: string;
+  lastActiveTime: string;
+  turns: ChatTurnRecord[];
+};
+
+type ChatConversationsResponse = {
+  conversations: ChatConversationRecord[];
+};
+
 type AgentPlan = {
   intent?: string;
   summary: string;
@@ -56,21 +75,29 @@ type ToolEvent = {
   result?: unknown;
 };
 
-type AgentEvent = {
-  type: "conversation" | "status" | "plan" | "delta" | "tool" | "done" | "error";
-  text?: string;
-  conversationId?: string;
-  plan?: AgentPlan;
-  tool?: Omit<ToolEvent, "id">;
-  responseId?: string;
-  error?: string;
+type ToolEventPayload = Omit<ToolEvent, "id">;
+
+type AgentStatus = "CONVERSATION_CREATING" | "PLANNING" | "EXECUTING";
+
+type AgentEvent =
+  | { type: "CONVERSATION"; conversationId: string; newConversation: boolean }
+  | { type: "STATUS"; status: AgentStatus }
+  | { type: "PLAN_DELTA"; text: string }
+  | { type: "PLAN"; plan: AgentPlan }
+  | { type: "DELTA"; text: string }
+  | ({ type: "TOOL" } & ToolEventPayload)
+  | { type: "DONE"; responseId?: string | null }
+  | { type: "ERROR"; error: string };
+
+const statusLabels: Record<AgentStatus, string> = {
+  CONVERSATION_CREATING: "Creating conversation",
+  PLANNING: "Planning",
+  EXECUTING: "Executing"
 };
 
 const debug = (...args: unknown[]) => {
   console.log("[life-agent]", ...args);
 };
-
-const conversationStorageKey = "life-agent.conversationId";
 
 const initialMeals: MealEntry[] = [
   {
@@ -115,23 +142,28 @@ const mealTypeLabels: Record<MealType, string> = {
   SNACK: "Snack"
 };
 
-function App() {
-  const [meals, setMeals] = React.useState(initialMeals);
-  const [messages, setMessages] = React.useState<ChatMessage[]>([
+function initialChatMessages(): ChatMessage[] {
+  return [
     {
       id: crypto.randomUUID(),
       role: "assistant",
       text: "Tell me what you ate, or ask me to record a meal. I can call tools and show every step."
     }
-  ]);
+  ];
+}
+
+function App() {
+  const [meals, setMeals] = React.useState(initialMeals);
+  const [messages, setMessages] = React.useState<ChatMessage[]>(() => initialChatMessages());
   const [input, setInput] = React.useState("Record my lunch: Hunan pepper fried pork and one bowl of rice.");
   const [status, setStatus] = React.useState("Ready");
   const [plan, setPlan] = React.useState<AgentPlan | null>(null);
+  const [planDraft, setPlanDraft] = React.useState("");
   const [tools, setTools] = React.useState<ToolEvent[]>([]);
   const [streaming, setStreaming] = React.useState(false);
-  const [conversationId, setConversationId] = React.useState(
-    localStorage.getItem(conversationStorageKey) || ""
-  );
+  const [conversationId, setConversationId] = React.useState("");
+  const [conversations, setConversations] = React.useState<ChatConversationRecord[]>([]);
+  const [historyError, setHistoryError] = React.useState("");
   const [draftMeal, setDraftMeal] = React.useState({
     title: "",
     type: "SNACK" as MealType,
@@ -158,7 +190,11 @@ function App() {
 
   React.useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, tools, status]);
+  }, [messages, plan, planDraft, tools, status]);
+
+  React.useEffect(() => {
+    void loadRecentConversations();
+  }, []);
 
   function addManualMeal(event: React.FormEvent) {
     event.preventDefault();
@@ -201,6 +237,7 @@ function App() {
     setMessages((current) => [...current, userMessage, assistantMessage]);
     setTools([]);
     setPlan(null);
+    setPlanDraft("");
     setStatus("Connecting");
     debug("chat send", { conversationId: conversationId || null, messageLength: message.length });
     setInput("");
@@ -279,30 +316,100 @@ function App() {
 
   function handleAgentEvent(event: AgentEvent) {
     debug("sse event", event);
-    if (event.type === "conversation" && event.conversationId) {
-      setConversationId(event.conversationId);
-      localStorage.setItem(conversationStorageKey, event.conversationId);
+    switch (event.type) {
+      case "CONVERSATION":
+        setConversationId(event.conversationId);
+        if (event.newConversation) {
+          setConversations((current) =>
+            current.some((conversation) => conversation.id === event.conversationId)
+              ? current
+              : [
+                  {
+                    id: event.conversationId,
+                    title: "Current chat",
+                    createTime: "",
+                    lastActiveTime: "",
+                    turns: []
+                  },
+                  ...current
+                ].slice(0, 10)
+          );
+        }
+        return;
+      case "STATUS":
+        setStatus(statusLabels[event.status]);
+        return;
+      case "PLAN_DELTA":
+        setPlanDraft((current) => current + event.text);
+        setStatus("Planning");
+        return;
+      case "PLAN":
+        setPlan(event.plan);
+        setPlanDraft("");
+        setStatus("Plan ready");
+        return;
+      case "DELTA":
+        enqueueText(event.text);
+        return;
+      case "TOOL":
+        setStatus(toolStatus(event));
+        upsertTool(event);
+        return;
+      case "DONE":
+        setStatus("Done");
+        void loadRecentConversations();
+        return;
+      case "ERROR":
+        setStatus(event.error);
+        setMessages((current) =>
+          current.map((item) =>
+            item.id === assistantId.current ? { ...item, text: item.text ? `${item.text}\n\nError: ${event.error}` : `Error: ${event.error}` } : item
+          )
+        );
     }
-    if (event.type === "status" && event.text) setStatus(event.text);
-    if (event.type === "plan" && event.plan) {
-      setPlan(event.plan);
-      setStatus("Plan ready");
+  }
+
+  async function loadRecentConversations() {
+    try {
+      const response = await fetch("/chat/conversations?limit=10&turnLimit=10");
+      if (!response.ok) throw new Error(await response.text());
+      const data = (await response.json()) as ChatConversationsResponse;
+      setConversations(data.conversations);
+      setHistoryError("");
+
+      const latest = data.conversations[0];
+      if (!latest) {
+        setConversationId("");
+        setMessages(initialChatMessages());
+        return;
+      }
+
+      setConversationId(latest.id);
+      setMessages(messagesFromTurns(latest.turns));
+    } catch (error) {
+      debug("conversation history load failed", error);
+      setHistoryError("History unavailable");
     }
-    if (event.type === "delta" && event.text) enqueueText(event.text);
-    if (event.type === "tool" && event.tool) {
-      setStatus(event.text || "Tool activity");
-      upsertTool(event.tool);
-    }
-    if (event.type === "done") setStatus("Done");
-    if (event.type === "error") {
-      const text = event.error || event.text || "Agent error";
-      setStatus(text);
-      setMessages((current) =>
-        current.map((item) =>
-          item.id === assistantId.current ? { ...item, text: item.text ? `${item.text}\n\nError: ${text}` : `Error: ${text}` } : item
-        )
-      );
-    }
+  }
+
+  function selectConversation(conversation: ChatConversationRecord) {
+    if (streaming) return;
+    setConversationId(conversation.id);
+    setMessages(messagesFromTurns(conversation.turns));
+    setPlan(null);
+    setPlanDraft("");
+    setTools([]);
+    setStatus("Ready");
+  }
+
+  function startNewConversation() {
+    if (streaming) return;
+    setConversationId("");
+    setMessages(initialChatMessages());
+    setPlan(null);
+    setPlanDraft("");
+    setTools([]);
+    setStatus("Ready");
   }
 
   function enqueueText(delta: string) {
@@ -327,7 +434,7 @@ function App() {
     window.setTimeout(pumpText, next.charCodeAt(0) > 127 ? 18 : 10);
   }
 
-  function upsertTool(tool: Omit<ToolEvent, "id">) {
+  function upsertTool(tool: ToolEventPayload) {
     const id = tool.callId || tool.itemId || `${tool.phase}-${tool.state}-${tools.length}`;
     setTools((current) => {
       const index = current.findIndex((item) => item.id === id);
@@ -482,11 +589,39 @@ function App() {
           </div>
         </div>
 
+        <div className="conversation-history">
+          <div className="conversation-history-head">
+            <span>History</span>
+            <button disabled={streaming} onClick={startNewConversation} type="button">
+              <Plus size={14} />
+              <span>New</span>
+            </button>
+          </div>
+          <div className="conversation-list">
+            {historyError && <div className="conversation-empty">{historyError}</div>}
+            {!historyError && conversations.length === 0 && <div className="conversation-empty">No conversations yet</div>}
+            {!historyError && conversations.map((conversation) => (
+              <button
+                className={`conversation-row ${conversation.id === conversationId ? "active" : ""}`}
+                disabled={streaming}
+                key={conversation.id}
+                onClick={() => selectConversation(conversation)}
+                title={conversation.title || conversation.id}
+                type="button"
+              >
+                <MessageCircle size={15} />
+                <span>{conversationTitle(conversation)}</span>
+                <time>{conversationTime(conversation.lastActiveTime)}</time>
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="chat-scroll" ref={scrollRef}>
-          {plan && (
+          {(plan || planDraft) && (
             <div className="plan-strip">
               <Bot size={17} />
-              <span>{plan.summary}</span>
+              <span>{plan?.summary || planDraft}</span>
             </div>
           )}
 
@@ -560,6 +695,55 @@ function formatTool(tool: ToolEvent) {
     result: tool.result
   };
   return JSON.stringify(payload, null, 2);
+}
+
+function messagesFromTurns(turns: ChatTurnRecord[]) {
+  const messages = turns.flatMap((turn) => {
+    const items: ChatMessage[] = [];
+    if (turn.userInput) {
+      items.push({
+        id: `${turn.id}-user`,
+        role: "user",
+        text: turn.userInput
+      });
+    }
+    if (turn.modelOutput) {
+      items.push({
+        id: `${turn.id}-assistant`,
+        role: "assistant",
+        text: turn.modelOutput
+      });
+    }
+    return items;
+  });
+  return messages.length > 0 ? messages : initialChatMessages();
+}
+
+function conversationTitle(conversation: ChatConversationRecord) {
+  const title = conversation.title || conversation.turns[0]?.userInput || "Untitled chat";
+  return title.length <= 28 ? title : `${title.slice(0, 28)}...`;
+}
+
+function conversationTime(value: string) {
+  if (!value) return "";
+  return value.replace("T", " ").slice(0, 16);
+}
+
+function toolStatus(tool: ToolEventPayload) {
+  switch (tool.state) {
+    case "arguments_delta":
+      return "Preparing tool call";
+    case "arguments_done":
+      return tool.name ? `Tool arguments ready: ${tool.name}` : "Tool arguments ready";
+    case "executing":
+      return tool.name ? `Executing tool: ${tool.name}` : "Executing tool";
+    case "missing_tool":
+      return tool.name ? `Missing tool implementation: ${tool.name}` : "Missing tool implementation";
+    case "result":
+      return "Tool execution completed";
+    default:
+      return "Tool activity";
+  }
 }
 
 function parseJson(value?: string) {

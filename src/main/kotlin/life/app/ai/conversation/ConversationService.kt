@@ -6,7 +6,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import kotlin.uuid.Uuid
 
 class ConversationService(
-    private val conversationDao: ConversationDao = ConversationDao(),
+    private val conversationDao: ConversationDao,
 ) {
     fun createConversation(
         openaiConversationId: String,
@@ -33,9 +33,9 @@ class ConversationService(
         }
     }
 
-    fun listConversations(): List<ConversationPo> {
+    fun listConversations(limit: Int = 10): List<ConversationPo> {
         return transaction {
-            conversationDao.listConversations()
+            conversationDao.listConversations(limit)
         }
     }
 
