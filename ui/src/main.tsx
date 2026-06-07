@@ -67,7 +67,7 @@ type AgentPlan = {
 type ToolEvent = {
   id: string;
   phase?: string;
-  state: string;
+  state: ToolState;
   callId?: string;
   itemId?: string;
   name?: string;
@@ -77,10 +77,12 @@ type ToolEvent = {
 
 type ToolEventPayload = Omit<ToolEvent, "id">;
 
-type AgentStatus = "CONVERSATION_CREATING" | "PLANNING" | "EXECUTING";
+type ToolState = "arguments_delta" | "arguments_done" | "executing" | "missing_tool" | "result";
+
+type AgentStatus = "PREPARING" | "THINKING" | "USING_TOOL" | "RESPONDING" | "COMPLETED" | "FAILED";
 
 type AgentEvent =
-  | { type: "CONVERSATION"; conversationId: string; newConversation: boolean }
+  | { type: "CONVERSATION"; conversationId: string }
   | { type: "STATUS"; status: AgentStatus }
   | { type: "PLAN_DELTA"; text: string }
   | { type: "PLAN"; plan: AgentPlan }
@@ -90,9 +92,12 @@ type AgentEvent =
   | { type: "ERROR"; error: string };
 
 const statusLabels: Record<AgentStatus, string> = {
-  CONVERSATION_CREATING: "Creating conversation",
-  PLANNING: "Planning",
-  EXECUTING: "Executing"
+  PREPARING: "Preparing",
+  THINKING: "Thinking",
+  USING_TOOL: "Using tool",
+  RESPONDING: "Responding",
+  COMPLETED: "Done",
+  FAILED: "Error"
 };
 
 const debug = (...args: unknown[]) => {
@@ -319,22 +324,6 @@ function App() {
     switch (event.type) {
       case "CONVERSATION":
         setConversationId(event.conversationId);
-        if (event.newConversation) {
-          setConversations((current) =>
-            current.some((conversation) => conversation.id === event.conversationId)
-              ? current
-              : [
-                  {
-                    id: event.conversationId,
-                    title: "Current chat",
-                    createTime: "",
-                    lastActiveTime: "",
-                    turns: []
-                  },
-                  ...current
-                ].slice(0, 10)
-          );
-        }
         return;
       case "STATUS":
         setStatus(statusLabels[event.status]);

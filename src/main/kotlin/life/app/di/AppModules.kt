@@ -8,7 +8,7 @@ import org.koin.dsl.module
 
 val appModule = module {
     single { ConversationDao() }
-    single { ConversationService(get()) }
+    single { ConversationService(get(), get()) }
     single { MealDao() }
     single { MealService(get()) }
 }

@@ -1,5 +1,6 @@
 package life.app.ai.conversation
 
+import com.openai.client.OpenAIClient
 import life.util.Times
 import life.util.Uuids
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -7,10 +8,18 @@ import kotlin.uuid.Uuid
 
 class ConversationService(
     private val conversationDao: ConversationDao,
+    private val client: OpenAIClient,
 ) {
+    fun createConversation(title: String): ConversationPo {
+        return createConversation(
+            openaiConversationId = client.conversations().create().id(),
+            title = title,
+        )
+    }
+
     fun createConversation(
         openaiConversationId: String,
-        title: String? = null,
+        title: String,
     ): ConversationPo {
         val now = Times.now()
         val conversation = ConversationPo(
@@ -25,6 +34,10 @@ class ConversationService(
             conversationDao.insertConversation(conversation)
         }
         return conversation
+    }
+
+    fun findConversationById(id: String): ConversationPo? {
+        return findConversationById(Uuids.parse(id))
     }
 
     fun findConversationById(id: Uuid): ConversationPo? {
@@ -68,9 +81,7 @@ class ConversationService(
                 "Conversation not found: $conversationId"
             }
             conversationDao.insertTurn(turn)
-            check(conversationDao.updateLastActiveTime(conversationId, now)) {
-                "Conversation not found: $conversationId"
-            }
+            conversationDao.updateLastActiveTime(conversationId, now)
         }
 
         return turn

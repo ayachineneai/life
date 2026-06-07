@@ -68,9 +68,9 @@ object AiRequests {
     }
 
     fun toolOutputs(
-        outputs: List<ToolOutput>,
         conversationId: String,
         model: ChatModel = chatModel,
+        outputs: List<ToolOutput>,
         tools: List<Tool> = emptyList(),
     ): ResponseCreateParams {
         return ResponseCreateParams.builder()

@@ -3,12 +3,13 @@ package life.app.ai.utils
 import com.openai.client.OpenAIClient
 import com.openai.models.responses.Response
 import com.openai.models.responses.ResponseCreateParams
+import com.openai.models.responses.ResponseStreamEvent
 
 object AiRuns {
     fun runStream(
         client: OpenAIClient,
         params: ResponseCreateParams,
-        handler: AiStreamEventHandler = {},
+        handler: (ResponseStreamEvent) -> Unit = {},
     ): Response {
         var response: Response? = null
         client.responses().createStreaming(params).use { stream ->
